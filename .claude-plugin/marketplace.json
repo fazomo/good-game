@@ -1,9 +1,30 @@
 {
+  "name": "good-game",
+  "owner": {
+    "name": "fazomo"
+  },
   "plugins": [
     {
       "name": "good-game",
       "description": "Multi-agent orchestration protocol for Claude Code. Structured workflows with parallel AI agents and optional Gemini/Codex cross-validation.",
-      "source": "github:moonsunkim/good-game"
+      "source": {
+        "source": "github",
+        "repo": "fazomo/good-game"
+      },
+      "version": "1.0.0",
+      "author": {
+        "name": "moonsunkim"
+      },
+      "homepage": "https://github.com/fazomo/good-game",
+      "repository": "https://github.com/fazomo/good-game",
+      "license": "MIT",
+      "keywords": [
+        "multi-agent",
+        "orchestration",
+        "workflow",
+        "claude-code",
+        "ai-agents"
+      ]
     }
   ]
 }
