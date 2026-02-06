@@ -2,5 +2,8 @@
   "name": "good-game",
   "version": "1.0.0",
   "description": "Multi-agent orchestration protocol for Claude Code. Structured workflows: explore, brainstorm, blueprint, execute, audit, and handoff -- powered by parallel AI agents with optional Gemini/Codex cross-validation.",
-  "author": "moonsunkim"
+  "author": {
+    "name": "Moonsun Kim",
+    "email": "fazomo@gmail.com"
+  }
 }
