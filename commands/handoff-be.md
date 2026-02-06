@@ -1,6 +1,6 @@
 ---
-name: handoff-be
-description: Generates a frontend-to-backend modification request document.
+description: "Generate frontend-to-backend modification request document"
+argument-hint: "[request description]"
 ---
 
 # /handoff-be - Handoff (Frontend -> Backend)
@@ -10,14 +10,14 @@ Generates a document requesting backend modifications from the frontend perspect
 ## Usage
 
 ```
-/handoff-be [request description]
+/gg:handoff-be [request description]
 ```
 
 **Examples:**
 
 ```
-/handoff-be cancellation reason field needed in API response
-/handoff-be
+/gg:handoff-be cancellation reason field needed in API response
+/gg:handoff-be
 ```
 
 ## When to Use
@@ -74,3 +74,5 @@ handoff-be
 ```
 
 **Note**: Orchestrator does not relay document content. Path only.
+
+Request: $ARGUMENTS

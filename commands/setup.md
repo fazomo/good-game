@@ -1,6 +1,5 @@
 ---
-name: setup
-description: "Initial setup for the good-game plugin. Run once after installation to install CLAUDE.md and configure the environment."
+description: "Run initial plugin setup (install CLAUDE.md, select language, configure AI backends)"
 ---
 
 # /gg:setup - Plugin Setup

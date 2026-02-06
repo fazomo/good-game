@@ -1,6 +1,5 @@
 ---
-name: uninstall
-description: "Prepares good-game plugin removal. Restores CLAUDE.md and cleans up residual files."
+description: "Remove plugin traces and restore CLAUDE.md"
 ---
 
 # /gg:uninstall - Plugin Uninstall

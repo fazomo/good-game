@@ -1,6 +1,6 @@
 ---
-name: handoff-fe
-description: Generates a backend-to-frontend handoff document.
+description: "Generate backend-to-frontend handoff document"
+argument-hint: "[description]"
 ---
 
 # /handoff-fe - Handoff (Backend -> Frontend)
@@ -10,14 +10,14 @@ Generates a handoff document for the frontend team after backend development is 
 ## Usage
 
 ```
-/handoff-fe [description]
+/gg:handoff-fe [description]
 ```
 
 **Examples:**
 
 ```
-/handoff-fe course cancellation API complete
-/handoff-fe
+/gg:handoff-fe course cancellation API complete
+/gg:handoff-fe
 ```
 
 ## When to Use
@@ -74,3 +74,5 @@ handoff-fe
 ```
 
 **Note**: Orchestrator does not relay document content. Path only.
+
+Handoff content: $ARGUMENTS
