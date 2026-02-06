@@ -1,0 +1,9 @@
+{
+  "plugins": [
+    {
+      "name": "good-game",
+      "description": "Multi-agent orchestration protocol for Claude Code. Structured workflows with parallel AI agents and optional Gemini/Codex cross-validation.",
+      "source": "github:moonsunkim/good-game"
+    }
+  ]
+}
