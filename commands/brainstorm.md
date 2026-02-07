@@ -1,5 +1,5 @@
 ---
-description: "3-strategist parallel brainstorming (Opus + Gemini + Codex)"
+description: "Multi-strategist parallel brainstorming (1-3 strategists based on AI backend config)"
 argument-hint: "<topic or requirement>"
 ---
 

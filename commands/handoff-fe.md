@@ -43,6 +43,13 @@ Reference session blueprint and execute results. Collect relevant file paths fro
 
 ### 2. Dispatch Writer Agent
 
+Before dispatching the Writer, read the language configuration:
+
+```bash
+LANGUAGE=$(cat ~/.claude/LANGUAGE.md 2>/dev/null | head -1)
+# Default to "English" if file is missing or empty
+```
+
 Delegate document creation to the Writer agent:
 
 ```typescript
@@ -50,6 +57,9 @@ Task({
   subagent_type: "writer",
   description: "Writer generating FE handoff document",
   prompt: `
+## Output Language
+{language}
+
 ## Mode
 handoff-fe
 

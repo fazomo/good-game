@@ -43,6 +43,13 @@ Gather current session discussion context and issue details. Collect relevant fi
 
 ### 2. Dispatch Writer Agent
 
+Before dispatching the Writer, read the language configuration:
+
+```bash
+LANGUAGE=$(cat ~/.claude/LANGUAGE.md 2>/dev/null | head -1)
+# Default to "English" if file is missing or empty
+```
+
 Delegate document creation to the Writer agent:
 
 ```typescript
@@ -50,6 +57,9 @@ Task({
   subagent_type: "writer",
   description: "Writer generating BE request document",
   prompt: `
+## Output Language
+{language}
+
 ## Mode
 handoff-be
 

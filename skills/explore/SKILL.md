@@ -90,6 +90,13 @@ BU: "Only 2 are actually imported; login.ts is dead code"
 
 ### 1. Dispatch Protocol
 
+Before dispatching Investigators, read the language configuration:
+
+```bash
+LANGUAGE=$(cat ~/.claude/LANGUAGE.md 2>/dev/null | head -1)
+# Default to "English" if file is missing or empty
+```
+
 Based on the specified Level, invoke **all Investigators simultaneously (Parallel)**.
 Every Investigator prompt **must include the output path and filename**.
 
@@ -105,6 +112,9 @@ Task({
   subagent_type: "investigator",
   description: "Squad-A TD: Full reconnaissance (Top-Down)",
   prompt: `
+## Output Language
+{language}
+
 TARGET: {target}
 ROLE: Squad-A Top-Down Scout
 AXES: Structure + Domain + Expansion (all 3 axes)
@@ -131,6 +141,9 @@ Task({
   subagent_type: "investigator",
   description: "Squad-A BU: Full reconnaissance (Bottom-Up)",
   prompt: `
+## Output Language
+{language}
+
 TARGET: {target}
 ROLE: Squad-A Bottom-Up Scout
 AXES: Structure + Domain + Expansion (all 3 axes)
@@ -167,6 +180,9 @@ Task({
   subagent_type: "investigator",
   description: "Squad-A TD: Structure + Domain (Top-Down)",
   prompt: `
+## Output Language
+{language}
+
 TARGET: {target}
 ROLE: Squad-A Top-Down (Internal Focus)
 AXES: Structure + Domain
@@ -190,6 +206,9 @@ Task({
   subagent_type: "investigator",
   description: "Squad-A BU: Structure + Domain (Bottom-Up)",
   prompt: `
+## Output Language
+{language}
+
 TARGET: {target}
 ROLE: Squad-A Bottom-Up (Internal Focus)
 AXES: Structure + Domain
@@ -214,6 +233,9 @@ Task({
   subagent_type: "investigator",
   description: "Squad-B TD: Expansion (Top-Down)",
   prompt: `
+## Output Language
+{language}
+
 TARGET: {target}
 ROLE: Squad-B Top-Down (External Focus)
 AXIS: Expansion
@@ -239,6 +261,9 @@ Task({
   subagent_type: "investigator",
   description: "Squad-B BU: Expansion (Bottom-Up)",
   prompt: `
+## Output Language
+{language}
+
 TARGET: {target}
 ROLE: Squad-B Bottom-Up (External Focus)
 AXIS: Expansion
@@ -276,6 +301,9 @@ Task({
   subagent_type: "synthesizer",
   description: "Synthesizing exploration results",
   prompt: `
+## Output Language
+{language}
+
 ## Mode
 explore
 

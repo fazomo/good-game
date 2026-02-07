@@ -1,6 +1,6 @@
 ---
 name: brainstorm
-description: Design and brainstorming. Use for "design this", "suggest approaches", "pros/cons analysis", "idea exploration" requests. Runs 3 strategists in parallel.
+description: Design and brainstorming. Use for "design this", "suggest approaches", "pros/cons analysis", "idea exploration" requests. Dispatches 1-3 strategists based on AI backend config.
 ---
 
 # /brainstorm - Multi-Agent Brainstorming
@@ -9,13 +9,13 @@ Brainstorming, design proposals, and idea exploration skill.
 
 ## Core Rule
 
-**Always dispatch 3 strategist agents in parallel.**
+**Always dispatch at least 1 strategist agent (Opus). Conditionally dispatch Gemini and Codex strategists based on `.gg/config.json`.**
 
-- Opus Strategist (opus) -- logical strategy
-- Gemini Strategist (opus; external: gemini-3-pro-preview) -- creative strategy
-- Codex Strategist (opus; external: gpt-5.3-codex) -- risk validation
+- Opus Strategist (opus) -- logical strategy -- **always dispatched**
+- Gemini Strategist (opus; external: gemini-3-pro-preview) -- creative strategy -- **if `backends.gemini: true`**
+- Codex Strategist (opus; external: gpt-5.3-codex) -- risk validation -- **if `backends.codex: true`**
 
-This mirrors the 3-auditor pattern in /audit, creating a symmetric multi-perspective architecture.
+This creates a 1-to-3 strategist pattern depending on the user's configured AI backends.
 
 ## Usage
 
@@ -89,122 +89,155 @@ AskUserQuestion({
 - If user answers reveal new angles, probe deeper with follow-up questions
 - Proceed to the next step when the user has answered sufficiently
 
-### 2. Dispatch 3 Agents (Parallel)
+### 2. Read Configuration
 
-Invoke 3 Tasks simultaneously in a single message:
+Before dispatching agents, read both the backend configuration and language configuration.
 
-```typescript
-// Opus Strategist (opus) -- logical strategy
-Task({
-  subagent_type: "opus-strategist",
-  description: "Opus Strategist brainstorming {topic}",
-  prompt: `
+**Backend config:**
 
-## Original Request
-
-{original_request}
-
-## Socratic Q&A
-
-{qa_summary}
-
-## Output Path
-
-{{SESSION_DIR}}/brainstorm/
-`,
-  run_in_background: true,
-});
-
-// Gemini Strategist (opus; external: gemini-3-pro-preview) -- creative strategy
-Task({
-  subagent_type: "gemini-strategist",
-  description: "Gemini Strategist brainstorming {topic}",
-  prompt: `
-
-## Original Request
-
-{original_request}
-
-## Socratic Q&A
-
-{qa_summary}
-
-## Output Path
-
-{{SESSION_DIR}}/brainstorm/
-`,
-  run_in_background: true,
-});
-
-// Codex Strategist (opus; external: gpt-5.3-codex) -- risk validation
-Task({
-  subagent_type: "codex-strategist",
-  description: "Codex Strategist brainstorming {topic}",
-  prompt: `
-
-## Original Request
-
-{original_request}
-
-## Socratic Q&A
-
-{qa_summary}
-
-## Output Path
-
-{{SESSION_DIR}}/brainstorm/
-`,
-  run_in_background: true,
-});
+```bash
+CONFIG_PATH="{{PROJECT_ROOT}}/.gg/config.json"
 ```
 
-### 3. Dispatch Synthesizer (Sequential)
+The orchestrator reads this file and parses the JSON. Determine which backends are enabled:
 
-After all 3 agents complete, invoke the Synthesizer in brainstorm mode.
+- `gemini`: boolean (default: `false`)
+- `codex`: boolean (default: `false`)
 
-```typescript
-// Collect agent file paths from each agent's return message.
-// The orchestrator parses "Saved: {path}" from each agent's return and assembles the list below dynamically.
+If the config file does not exist, treat both as `false` (Claude-only mode) **and** display a notice to the user:
 
-Task({
-  subagent_type: "synthesizer",
-  description: "Synthesizing brainstorm results",
-  prompt: `
-## Mode
-brainstorm
-
-## Brainstorming Topic
-{topic}
-
-## Source Files
-- {{SESSION_DIR}}/brainstorm/opus.{nn}.md
-- {{SESSION_DIR}}/brainstorm/gemini.{nn}.md
-- {{SESSION_DIR}}/brainstorm/codex.{nn}.md
-
-## Output Path
-{{SESSION_DIR}}/brainstorm/
-  `,
-});
 ```
+Note: No .gg/config.json found. Running in Claude-only mode.
+Run /gg:setup to configure AI backends.
+```
+
+**Language config:**
+
+```bash
+LANGUAGE=$(cat ~/.claude/LANGUAGE.md 2>/dev/null | head -1)
+# Default to "English" if file is missing or empty
+```
+
+The orchestrator reads `~/.claude/LANGUAGE.md` and uses the first line as the language value. If the file is missing or empty, default to `"English"`.
+
+### 3. Dispatch Agents (Parallel)
+
+**Always dispatch Opus Strategist.** Conditionally dispatch Gemini and Codex strategists based on the config read in step 2. Every agent prompt includes the resolved output language.
+
+**Orchestrator pseudocode:**
+
+```
+// ALWAYS: Opus Strategist (opus) -- logical strategy
+Task(opus-strategist):
+  description: "Opus Strategist brainstorming {topic}"
+  prompt: |
+    ## Output Language
+    {language}
+
+    ## Original Request
+    {original_request}
+
+    ## Socratic Q&A
+    {qa_summary}
+
+    ## Output Path
+    {{SESSION_DIR}}/brainstorm/
+  run_in_background: true
+
+// CONDITIONAL: Gemini Strategist (if gemini backend enabled)
+if config.backends.gemini:
+  Task(gemini-strategist):
+    description: "Gemini Strategist brainstorming {topic}"
+    prompt: |
+      ## Output Language
+      {language}
+
+      ## Original Request
+      {original_request}
+
+      ## Socratic Q&A
+      {qa_summary}
+
+      ## Output Path
+      {{SESSION_DIR}}/brainstorm/
+    run_in_background: true
+
+// CONDITIONAL: Codex Strategist (if codex backend enabled)
+if config.backends.codex:
+  Task(codex-strategist):
+    description: "Codex Strategist brainstorming {topic}"
+    prompt: |
+      ## Output Language
+      {language}
+
+      ## Original Request
+      {original_request}
+
+      ## Socratic Q&A
+      {qa_summary}
+
+      ## Output Path
+      {{SESSION_DIR}}/brainstorm/
+    run_in_background: true
+```
+
+### 4. Dispatch Synthesizer (Sequential)
+
+After all dispatched agents complete, invoke the Synthesizer in brainstorm mode.
+
+The source file list is dynamic based on which agents were dispatched:
+
+**Orchestrator pseudocode:**
+
+```
+// Build source file list dynamically
+sourceFiles = [{{SESSION_DIR}}/brainstorm/opus.{nn}.md]
+if config.backends.gemini:
+  sourceFiles.append({{SESSION_DIR}}/brainstorm/gemini.{nn}.md)
+if config.backends.codex:
+  sourceFiles.append({{SESSION_DIR}}/brainstorm/codex.{nn}.md)
+
+Task(synthesizer):
+  description: "Synthesizing brainstorm results"
+  prompt: |
+    ## Output Language
+    {language}
+
+    ## Mode
+    brainstorm
+
+    ## Brainstorming Topic
+    {topic}
+
+    ## Source Files
+    {sourceFiles, one per line prefixed with "- "}
+
+    ## Output Path
+    {{SESSION_DIR}}/brainstorm/
+```
+
+**If only Opus was dispatched (Claude-only mode):** The synthesizer still runs but with a single source. Its output will be a streamlined report based on one perspective rather than a multi-perspective synthesis.
 
 **Note:** The source file list uses actual paths returned by the agents. The filenames above are examples; the orchestrator dynamically assembles the list by parsing each agent's return message for the "Saved: {path}" pattern. If an agent fails to save a file and returns text directly instead, inline that content into the Synthesizer prompt as a fallback.
 
-### 4. Final Output (Orchestrator Output)
+### 5. Final Output (Orchestrator Output)
+
+Report only the agents that were dispatched:
 
 ```
 **[Opus Strategist]** -- returned
-**[Gemini Strategist]** -- returned
-**[Codex Strategist]** -- returned
+**[Gemini Strategist]** -- returned          // only if gemini enabled
+**[Codex Strategist]** -- returned           // only if codex enabled
 **[Synthesizer]** -- returned
 
 **Report** -- `{{SESSION_DIR}}/brainstorm/synthesis.{nn}.md`
 **Detail** -- `{{SESSION_DIR}}/brainstorm/`
 ```
 
-**Notes**:
+**Notes:**
 
 - Agents save files directly (orchestrator does not save)
 - Filenames are determined by each agent per its convention
-- Synthesizer consolidates all 3 results into a unified report
+- Synthesizer consolidates all dispatched results into a unified report
 - Orchestrator does not relay detailed content
 - Direct users to reference the files

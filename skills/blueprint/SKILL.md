@@ -126,6 +126,13 @@ If no files are found at these paths, skip this section.
 
 ### 4. Dispatch Director Agent
 
+Before dispatching the Director, read the language configuration:
+
+```bash
+LANGUAGE=$(cat ~/.claude/LANGUAGE.md 2>/dev/null | head -1)
+# Default to "English" if file is missing or empty
+```
+
 Pass the Director **output path** and **preprocessed results** explicitly:
 
 ```typescript
@@ -133,6 +140,9 @@ Task({
   subagent_type: "director",
   description: "Director creating blueprint for {topic}",
   prompt: `
+## Output Language
+{language}
+
 ## Planning Topic
 {topic}
 

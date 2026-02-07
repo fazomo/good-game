@@ -1,6 +1,6 @@
 ---
 name: audit
-description: Precision audit. Use for "review", "check", "verify" requests. Runs 3 auditors in parallel.
+description: Precision audit. Use for "review", "check", "verify" requests. Dispatches 1-3 auditors based on AI backend config.
 ---
 
 # /audit - Cross-Review
@@ -9,13 +9,13 @@ Precision audit skill for the audit target.
 
 ## Core Rule
 
-**Always dispatch 3 reviewers in parallel.**
+**Always dispatch at least 1 reviewer (Opus). Conditionally dispatch Codex and Gemini auditors based on `.gg/config.json`.**
 
-| Reviewer       | Model | Role                                                               |
-| -------------- | ----- | ------------------------------------------------------------------ |
-| opus-auditor   | opus  | Integrated integrity + convention audit                            |
-| codex-auditor  | codex | Integrated integrity + convention audit (cross-perspective)        |
-| gemini-auditor | opus  | Integrated integrity + convention audit (Gemini cross-perspective) |
+| Reviewer       | Model | Condition                  | Role                                        |
+| -------------- | ----- | -------------------------- | ------------------------------------------- |
+| opus-auditor   | opus  | **always**                 | Integrated integrity + convention audit     |
+| codex-auditor  | opus  | if `backends.codex: true`  | Integrated audit (Codex cross-perspective)  |
+| gemini-auditor | opus  | if `backends.gemini: true` | Integrated audit (Gemini cross-perspective) |
 
 ## Audit Target Types
 
@@ -66,94 +66,120 @@ If type is not specified, the orchestrator examines the target path content to d
 
 Verify the audit target files and determine the target type.
 
-### 2. Dispatch 3 Auditors (Parallel)
+### 2. Read Configuration
 
-Invoke 3 Tasks simultaneously in a single message:
+**Backend config:**
 
-```typescript
-// Opus (integrated audit)
-Task({
-  subagent_type: "opus-auditor",
-  description: "Opus auditing target",
-  prompt: `
-## Audit Target
-{target_path}
-
-## Audit Target Type
-{target_type}
-
-## Source Documents
-{source_documents}
-
-## Applied Best Practices
-{best_practices_paths}
-
-## Output Path
-{{SESSION_DIR}}/audit/
-  `,
-  run_in_background: true,
-});
-
-// Codex (integrated audit)
-Task({
-  subagent_type: "codex-auditor",
-  description: "Codex auditing target",
-  prompt: `
-## Audit Target
-{target_path}
-
-## Audit Target Type
-{target_type}
-
-## Source Documents
-{source_documents}
-
-## Applied Best Practices
-{best_practices_paths}
-
-## Output Path
-{{SESSION_DIR}}/audit/
-  `,
-  run_in_background: true,
-});
-
-// Gemini (integrated audit)
-Task({
-  subagent_type: "gemini-auditor",
-  description: "Gemini auditing target",
-  prompt: `
-## Audit Target
-{target_path}
-
-## Audit Target Type
-{target_type}
-
-## Source Documents
-{source_documents}
-
-## Applied Best Practices
-{best_practices_paths}
-
-## Output Path
-{{SESSION_DIR}}/audit/
-  `,
-  run_in_background: true,
-});
+```bash
+CONFIG_PATH="{{PROJECT_ROOT}}/.gg/config.json"
 ```
 
-### 3. Present Results (Orchestrator Output)
+The orchestrator reads this file and parses the JSON. If the file does not exist, default to Claude-only (`gemini: false`, `codex: false`) **and** display a notice:
 
-The orchestrator reports the 3 reviewer result file paths:
+```
+Note: No .gg/config.json found. Running in Claude-only mode (Opus auditor only).
+Run /gg:setup to configure AI backends.
+```
+
+**Language config:**
+
+```bash
+LANGUAGE=$(cat ~/.claude/LANGUAGE.md 2>/dev/null | head -1)
+# Default to "English" if file is missing or empty
+```
+
+### 3. Dispatch Auditors (Parallel)
+
+**Always dispatch Opus Auditor.** Conditionally dispatch Codex and Gemini auditors based on config. Every auditor prompt includes the resolved output language.
+
+**Orchestrator pseudocode:**
+
+```
+// ALWAYS: Opus Auditor
+Task(opus-auditor):
+  description: "Opus auditing target"
+  prompt: |
+    ## Output Language
+    {language}
+
+    ## Audit Target
+    {target_path}
+
+    ## Audit Target Type
+    {target_type}
+
+    ## Source Documents
+    {source_documents}
+
+    ## Applied Best Practices
+    {best_practices_paths}
+
+    ## Output Path
+    {{SESSION_DIR}}/audit/
+  run_in_background: true
+
+// CONDITIONAL: Codex Auditor
+if config.backends.codex:
+  Task(codex-auditor):
+    description: "Codex auditing target"
+    prompt: |
+      ## Output Language
+      {language}
+
+      ## Audit Target
+      {target_path}
+
+      ## Audit Target Type
+      {target_type}
+
+      ## Source Documents
+      {source_documents}
+
+      ## Applied Best Practices
+      {best_practices_paths}
+
+      ## Output Path
+      {{SESSION_DIR}}/audit/
+    run_in_background: true
+
+// CONDITIONAL: Gemini Auditor
+if config.backends.gemini:
+  Task(gemini-auditor):
+    description: "Gemini auditing target"
+    prompt: |
+      ## Output Language
+      {language}
+
+      ## Audit Target
+      {target_path}
+
+      ## Audit Target Type
+      {target_type}
+
+      ## Source Documents
+      {source_documents}
+
+      ## Applied Best Practices
+      {best_practices_paths}
+
+      ## Output Path
+      {{SESSION_DIR}}/audit/
+    run_in_background: true
+```
+
+### 4. Present Results (Orchestrator Output)
+
+Report only the auditors that were dispatched:
 
 ```
 **[Opus]** -- `{{SESSION_DIR}}/audit/opus.{nn}.md`
-**[Codex]** -- `{{SESSION_DIR}}/audit/codex.{nn}.md`
-**[Gemini]** -- `{{SESSION_DIR}}/audit/gemini.{nn}.md`
+**[Codex]** -- `{{SESSION_DIR}}/audit/codex.{nn}.md`     // only if codex enabled
+**[Gemini]** -- `{{SESSION_DIR}}/audit/gemini.{nn}.md`   // only if gemini enabled
 ```
 
-**Note**: The orchestrator does not consolidate or summarize results. Only paths are reported.
+**Note:** The orchestrator does not consolidate or summarize results. Only paths are reported.
 
-### 4. Auto Feedback (Context Branching)
+### 5. Auto Feedback (Context Branching)
 
 After audit completion, the orchestrator routes feedback **based on the calling context**:
 
@@ -161,59 +187,62 @@ After audit completion, the orchestrator routes feedback **based on the calling 
 
 Executor = Director. Forward feedback to Director to revise the Blueprint document:
 
-```typescript
-Task({
-  subagent_type: "director",
-  description: "Director revising blueprint based on audit",
-  prompt: `
-## Audit Feedback - Audit Complete
+**Orchestrator pseudocode:**
 
-3 reviewers have completed their audit.
+```
+Task(director):
+  description: "Director revising blueprint based on audit"
+  prompt: |
+    ## Output Language
+    {language}
 
-### Audit Reports (must Read)
-- {{SESSION_DIR}}/audit/opus.{nn}.md
-- {{SESSION_DIR}}/audit/codex.{nn}.md
-- {{SESSION_DIR}}/audit/gemini.{nn}.md
+    ## Audit Feedback - Audit Complete
 
-### Original Target
-{target_path}
+    {N} reviewer(s) have completed their audit.
 
-### Common Critical Issues Summary
-{common_critical_summary}
+    ### Audit Reports (must Read)
+    - {{SESSION_DIR}}/audit/opus.{nn}.md
+    - {{SESSION_DIR}}/audit/codex.{nn}.md    // only if codex was dispatched
+    - {{SESSION_DIR}}/audit/gemini.{nn}.md   // only if gemini was dispatched
 
-Read the above audit reports to review the findings.
-If Critical/Warning issues exist, revise the target accordingly.
-Overwrite revised content at the same path.
-  `,
-});
+    ### Original Target
+    {target_path}
+
+    ### Common Critical Issues Summary
+    {common_critical_summary}
+
+    Read the above audit reports to review the findings.
+    If Critical/Warning issues exist, revise the target accordingly.
+    Overwrite revised content at the same path.
 ```
 
 #### Case B: Pipeline internal call (previous skill was /execute)
 
 Executor = Implementor. Forward feedback to Implementor to revise the code:
 
-```typescript
-Task({
-  subagent_type: "implementor",
-  description: "Implementor revising code based on audit",
-  prompt: `
-## Audit Feedback - Audit Complete
+**Orchestrator pseudocode:**
 
-3 reviewers have completed their audit.
-
-### Audit Reports (must Read)
-- {{SESSION_DIR}}/audit/opus.{nn}.md
-- {{SESSION_DIR}}/audit/codex.{nn}.md
-- {{SESSION_DIR}}/audit/gemini.{nn}.md
-
-### Original Target
-{target_path}
-
-Read the above audit reports to review the findings.
-If Critical/Warning issues exist, revise the target accordingly.
-  `,
-});
 ```
+Task(implementor):
+  description: "Implementor revising code based on audit"
+  prompt: |
+    ## Audit Feedback - Audit Complete
+
+    {N} reviewer(s) have completed their audit.
+
+    ### Audit Reports (must Read)
+    - {{SESSION_DIR}}/audit/opus.{nn}.md
+    - {{SESSION_DIR}}/audit/codex.{nn}.md    // only if codex was dispatched
+    - {{SESSION_DIR}}/audit/gemini.{nn}.md   // only if gemini was dispatched
+
+    ### Original Target
+    {target_path}
+
+    Read the above audit reports to review the findings.
+    If Critical/Warning issues exist, revise the target accordingly.
+```
+
+**Note:** Case B dispatches the Implementor, which is a code-only agent. No `## Output Language` is injected here -- the Implementor produces code, not documents.
 
 #### Case C: Standalone invocation (user direct /audit)
 
@@ -221,21 +250,21 @@ No feedback routing. The orchestrator reports results to the user and waits:
 
 ```
 **[Opus]** -- `{{SESSION_DIR}}/audit/opus.{nn}.md`
-**[Codex]** -- `{{SESSION_DIR}}/audit/codex.{nn}.md`
-**[Gemini]** -- `{{SESSION_DIR}}/audit/gemini.{nn}.md`
+**[Codex]** -- `{{SESSION_DIR}}/audit/codex.{nn}.md`     // only if codex enabled
+**[Gemini]** -- `{{SESSION_DIR}}/audit/gemini.{nn}.md`   // only if gemini enabled
 
 Please specify next action.
 ```
 
-### 5. Workflow Summary
+### 6. Workflow Summary
 
 ```
-Audit -- 3 reviewers audit complete
+Audit -- 1-3 reviewers audit complete (based on backend config)
 Executor -- reads audit reports, revises target (pipeline internal calls only)
 Executor -- revision complete, process ends
 ```
 
-**Notes**:
+**Notes:**
 
 - Feedback loop runs once only. If further audit is needed after revision, the user re-runs `/audit`.
 - Executor is Director (Blueprint) or Implementor (Code) depending on context.

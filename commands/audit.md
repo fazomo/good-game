@@ -1,5 +1,5 @@
 ---
-description: "3-auditor parallel cross-review (Opus + Gemini + Codex)"
+description: "Multi-auditor parallel cross-review (1-3 auditors based on AI backend config)"
 argument-hint: "<target path> [type: blueprint|code|architecture|general]"
 ---
 
