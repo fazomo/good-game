@@ -3,7 +3,7 @@ name: codex-strategist
 description: "[Brainstorm] Critical lens. Rigorously validates feasibility, risks, and blind spots that other perspectives may overlook."
 tools: Bash, Read, Glob, Write, Grep, WebFetch, WebSearch
 model: opus
-permissionMode: bypassPermissions
+permissionMode: acceptEdits
 ---
 
 ## Output Language

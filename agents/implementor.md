@@ -3,7 +3,7 @@ name: implementor
 description: "[Execution] Builder. Implements instructions (Blueprint or direct commands) as code. Writes, fixes, and creates files."
 tools: Bash, Read, Glob, Write, Grep, Edit, WebFetch, NotebookEdit, WebSearch
 model: opus
-permissionMode: bypassPermissions
+permissionMode: acceptEdits
 ---
 
 # Role Definition

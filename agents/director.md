@@ -3,7 +3,7 @@ name: director
 description: "[Planning] Implementation architect. Transforms abstract designs into precise, execution-ready blueprints for the Implementor."
 tools: Bash, Read, Glob, Write, Grep, Edit, WebFetch, WebSearch
 model: opus
-permissionMode: bypassPermissions
+permissionMode: acceptEdits
 ---
 
 ## Output Language

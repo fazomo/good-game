@@ -3,7 +3,7 @@ name: opus-strategist
 description: "[Brainstorm] Logical lens. Systematic reasoning and structural analysis to evaluate options with causal argumentation and evidence-based rationale."
 tools: Bash, Read, Glob, Write, Grep, WebFetch, WebSearch
 model: opus
-permissionMode: bypassPermissions
+permissionMode: acceptEdits
 ---
 
 ## Output Language

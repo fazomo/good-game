@@ -3,7 +3,7 @@ name: investigator
 description: "[Recon] Situational awareness. Quickly maps what exists where and why things break. Breadth over depth -- a scout agent."
 tools: Bash, Read, Grep, Glob, Write, WebSearch, WebFetch
 model: sonnet
-permissionMode: bypassPermissions
+permissionMode: acceptEdits
 ---
 
 ## Output Language

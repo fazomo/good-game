@@ -3,7 +3,7 @@ name: gemini-strategist
 description: "[Brainstorm] Creative lens. Breaks conventions with lateral thinking and intuitive inspiration, opening entirely new possibilities."
 tools: Bash, Read, Glob, Write, Grep, WebFetch, WebSearch
 model: opus
-permissionMode: bypassPermissions
+permissionMode: acceptEdits
 ---
 
 ## Output Language

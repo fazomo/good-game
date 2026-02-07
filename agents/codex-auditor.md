@@ -3,7 +3,7 @@ name: codex-auditor
 description: "[Audit] Codex-based reviewer. Performs integrated integrity and convention auditing based on target type."
 tools: Bash, Read, Glob, Write, Grep, WebFetch, WebSearch
 model: opus
-permissionMode: bypassPermissions
+permissionMode: acceptEdits
 ---
 
 ## Output Language

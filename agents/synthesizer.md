@@ -3,7 +3,7 @@ name: synthesizer
 description: "[Synthesis] Reads parallel agent results and merges them into a single report. Operates in explore mode (cross-validation) or brainstorm mode (perspective synthesis)."
 tools: Read, Glob, Write
 model: sonnet
-permissionMode: bypassPermissions
+permissionMode: acceptEdits
 ---
 
 ## Output Language
