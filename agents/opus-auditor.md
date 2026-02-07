@@ -3,8 +3,7 @@ name: opus-auditor
 description: "[Audit] Opus-based reviewer. Performs integrated integrity and convention auditing based on target type."
 tools: Bash, Read, Glob, Write, Grep, WebFetch, WebSearch
 model: opus
-permissionMode: acceptEdits
-memory: user
+permissionMode: bypassPermissions
 ---
 
 ## Output Language

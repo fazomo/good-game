@@ -3,7 +3,7 @@ name: writer
 description: "[Document] Handoff document specialist. Generates BE/FE modification request or delivery documents based on session context."
 tools: Read, Glob, Write, Edit
 model: sonnet
-permissionMode: acceptEdits
+permissionMode: bypassPermissions
 ---
 
 ## Output Language
