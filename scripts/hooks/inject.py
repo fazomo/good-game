@@ -10,13 +10,50 @@ import json
 import os
 import sys
 
-def read_backend_config():
+def _iter_config_candidates(input_data):
+    """Yield possible .gg/config.json paths in priority order."""
+    roots = []
+
+    payload_cwd = input_data.get("cwd")
+    if isinstance(payload_cwd, str) and payload_cwd.strip():
+        roots.append(payload_cwd.strip())
+
+    env_project_dir = os.environ.get("CLAUDE_PROJECT_DIR", "").strip()
+    if env_project_dir:
+        roots.append(env_project_dir)
+
+    roots.append(os.getcwd())
+
+    seen = set()
+    for root in roots:
+        abs_root = os.path.abspath(root)
+        if abs_root in seen:
+            continue
+        seen.add(abs_root)
+
+        current = abs_root
+        while True:
+            yield os.path.join(current, ".gg", "config.json")
+            parent = os.path.dirname(current)
+            if parent == current:
+                break
+            current = parent
+
+
+def read_backend_config(input_data):
     """Read .gg/config.json for backend status injection."""
-    cwd = os.getcwd()
-    config_path = os.path.join(cwd, ".gg", "config.json")
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            config = json.load(f)
+    checked = set()
+    for config_path in _iter_config_candidates(input_data):
+        if config_path in checked:
+            continue
+        checked.add(config_path)
+
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+        except (FileNotFoundError, PermissionError, OSError, json.JSONDecodeError):
+            continue
+
         backends = config.get("backends", {})
         gemini = backends.get("gemini", False)
         codex = backends.get("codex", False)
@@ -26,8 +63,8 @@ def read_backend_config():
         if codex:
             parts.append("Codex")
         return " + ".join(parts)
-    except (FileNotFoundError, json.JSONDecodeError, PermissionError, OSError):
-        return "Claude only"
+
+    return "Claude only"
 
 
 GG_REMINDER_TEMPLATE = """
@@ -73,7 +110,7 @@ def main():
     try:
         input_data = json.load(sys.stdin)
 
-        backend_status = read_backend_config()
+        backend_status = read_backend_config(input_data)
         reminder = GG_REMINDER_TEMPLATE.format(backend_status=backend_status)
 
         output = {

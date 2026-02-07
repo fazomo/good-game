@@ -83,21 +83,52 @@ def read_language():
         return ""
 
 
-def read_backend_config():
+def _iter_config_candidates(input_data):
+    """Yield possible .gg/config.json paths in priority order."""
+    roots = []
+
+    payload_cwd = input_data.get("cwd")
+    if isinstance(payload_cwd, str) and payload_cwd.strip():
+        roots.append(payload_cwd.strip())
+
+    env_project_dir = os.environ.get("CLAUDE_PROJECT_DIR", "").strip()
+    if env_project_dir:
+        roots.append(env_project_dir)
+
+    roots.append(os.getcwd())
+
+    seen = set()
+    for root in roots:
+        abs_root = os.path.abspath(root)
+        if abs_root in seen:
+            continue
+        seen.add(abs_root)
+
+        current = abs_root
+        while True:
+            yield os.path.join(current, ".gg", "config.json")
+            parent = os.path.dirname(current)
+            if parent == current:
+                break
+            current = parent
+
+
+def read_backend_config(input_data):
     """Read the project's backend configuration from .gg/config.json.
     Returns a formatted backend status line for primer injection.
-
-    Note: os.getcwd() is used as a best-effort project root detection.
-    This works correctly when Claude Code launches hooks from the project
-    root, which is the standard behavior. If the working directory is
-    not the project root, the config file will not be found and the
-    function falls back to the default message.
     """
-    cwd = os.getcwd()
-    config_path = os.path.join(cwd, ".gg", "config.json")
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            config = json.load(f)
+    checked = set()
+    for config_path in _iter_config_candidates(input_data):
+        if config_path in checked:
+            continue
+        checked.add(config_path)
+
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+        except (FileNotFoundError, PermissionError, OSError, json.JSONDecodeError):
+            continue
+
         backends = config.get("backends", {})
         gemini = backends.get("gemini", False)
         codex = backends.get("codex", False)
@@ -108,8 +139,8 @@ def read_backend_config():
             parts.append("Codex")
         backend_str = " + ".join(parts)
         return f"AI BACKENDS: {backend_str}. Dispatch agents accordingly."
-    except (FileNotFoundError, json.JSONDecodeError, PermissionError, OSError):
-        return "AI BACKENDS: Claude only (no .gg/config.json found). Run /gg:setup to configure."
+
+    return "AI BACKENDS: Claude only (no .gg/config.json found). Run /gg:setup to configure."
 
 
 def main():
@@ -118,7 +149,7 @@ def main():
         source = input_data.get("source", "startup")
 
         language_line = read_language()
-        backend_line = read_backend_config()
+        backend_line = read_backend_config(input_data)
 
         # Choose primer based on session start source
         if source in ("startup", "resume"):
