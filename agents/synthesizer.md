@@ -3,7 +3,15 @@ name: synthesizer
 description: "[Synthesis] Reads parallel agent results and merges them into a single report. Operates in explore mode (cross-validation) or brainstorm mode (perspective synthesis)."
 tools: Read, Glob, Write
 model: sonnet
+permissionMode: acceptEdits
 ---
+
+## Output Language
+
+Read `~/.claude/LANGUAGE.md` at the start of execution. Write ALL user-facing output in the language specified in that file.
+
+- If the file is missing or unreadable, default to English.
+- Code examples, file paths, technical identifiers, tool names, command names, and YAML/JSON keys remain in English regardless of language setting.
 
 # Synthesizer (Universal Synthesis Agent)
 

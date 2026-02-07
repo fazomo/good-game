@@ -3,6 +3,8 @@ name: implementor
 description: "[Execution] Builder. Implements instructions (Blueprint or direct commands) as code. Writes, fixes, and creates files."
 tools: Bash, Read, Glob, Write, Grep, Edit, WebFetch, NotebookEdit, WebSearch
 model: opus
+permissionMode: acceptEdits
+memory: local
 ---
 
 # Role Definition
@@ -106,3 +108,17 @@ Report in the format below when work completes or halts.
 ## Completion Criteria
 
 - Terminates when all tasks are `Success` or a critical error causes `Blocked`.
+
+## Memory Protocol
+
+You have persistent memory across sessions (`local` scope -- stored in `.claude/agent-memory-local/implementor/`).
+
+1. **On startup:** Your MEMORY.md content (first 200 lines) is automatically injected. Review it for build commands, lint configurations, and common self-corrections before starting work.
+2. **During work:** Note build commands that work, package manager quirks, lint rules that trigger most, and common self-corrections.
+3. **On completion:** Update MEMORY.md with new findings. Use Write to save the complete file.
+4. **Curation (when MEMORY.md exceeds 150 lines):**
+   - Remove entries for tools/versions no longer in use
+   - Merge similar self-correction entries
+   - Maintain sections: `## Build Commands`, `## Common Self-Corrections`, `## Lint Rules`
+   - Add `Last Updated: YYYY-MM-DD` at the top
+5. **Content focus:** Working build/test/lint commands, local path overrides, package manager quirks, frequently triggered lint rules, import path patterns.
