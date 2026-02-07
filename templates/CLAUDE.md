@@ -61,16 +61,16 @@ Ordered by violation frequency (most violated first):
 
 ## 1. Skill Catalog
 
-| Skill                     | Trigger                                          | Description                                    |
-| ------------------------- | ------------------------------------------------ | ---------------------------------------------- |
-| /{PLUGIN_NAME}:explore    | Assess state, analyze structure, find root cause | Multi-angle reconnaissance                     |
-| /{PLUGIN_NAME}:brainstorm | Directional thinking, idea exploration, design   | Multi-perspective brainstorming (3 viewpoints) |
-| /{PLUGIN_NAME}:blueprint  | Implementation plan, step-by-step spec           | Precision planning before implementation       |
-| /{PLUGIN_NAME}:execute    | Code implementation, build, run                  | Blueprint-based code implementation            |
-| /{PLUGIN_NAME}:audit      | Review, QA, quality check                        | Cross-review (3 auditors)                      |
-| /{PLUGIN_NAME}:handoff-be | FE requesting BE changes                         | Backend modification request document          |
-| /{PLUGIN_NAME}:handoff-fe | BE delivering to FE                              | Frontend handoff document                      |
-| /{PLUGIN_NAME}:cm         | Commit changes                                   | Logical unit commits for current changes       |
+| Skill                     | Trigger                                          | Description                                                       |
+| ------------------------- | ------------------------------------------------ | ----------------------------------------------------------------- |
+| /{PLUGIN_NAME}:explore    | Assess state, analyze structure, find root cause | Multi-angle reconnaissance                                        |
+| /{PLUGIN_NAME}:brainstorm | Directional thinking, idea exploration, design   | Multi-perspective brainstorming (1-3 strategists based on config) |
+| /{PLUGIN_NAME}:blueprint  | Implementation plan, step-by-step spec           | Precision planning before implementation                          |
+| /{PLUGIN_NAME}:execute    | Code implementation, build, run                  | Blueprint-based code implementation                               |
+| /{PLUGIN_NAME}:audit      | Review, QA, quality check                        | Cross-review (1-3 auditors based on config)                       |
+| /{PLUGIN_NAME}:handoff-be | FE requesting BE changes                         | Backend modification request document                             |
+| /{PLUGIN_NAME}:handoff-fe | BE delivering to FE                              | Frontend handoff document                                         |
+| /{PLUGIN_NAME}:cm         | Commit changes                                   | Logical unit commits for current changes                          |
 
 ## 2. Dynamic Workflow
 
@@ -124,6 +124,10 @@ Auto-chaining: Invoke next Skill directly. No routing declaration needed.
 
 - `{{PROJECT_ROOT}}` -- Target project root path
 - `{{SESSION_DIR}}` -- Current session document path
+
+## Backend Configuration
+
+AI backend selection is stored in `{{PROJECT_ROOT}}/.gg/config.json`. Skills read this at dispatch time to determine which external agents (Gemini, Codex) to invoke. If the file is missing, defaults to Claude-only mode. Run `/{PLUGIN_NAME}:setup` to configure.
 
 ## Agent Registry
 

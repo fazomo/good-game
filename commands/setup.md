@@ -97,80 +97,126 @@ Example: if the user selected "Korean", the file contains exactly `Korean` (no n
 
 This file is the Single Source of Truth for language configuration. Both the orchestrator (via CLAUDE.md) and all subagents (via their agent .md prompts) read this file at runtime.
 
-### Step 3: External AI Selection
+### Step 3: External AI Backend Selection
 
-Use AskUserQuestion to select external AI backends.
+Detect available CLIs:
 
-First run `which gemini` and `which codex` to check CLI availability.
-
-```typescript
-AskUserQuestion({
-  questions: [
-    {
-      question:
-        "Which AI backends would you like to use? (Default: Claude only)",
-      header: "AI Backend",
-      options: [
-        "Claude only (no external AI, default)",
-        "Claude + Gemini (Gemini Strategist uses Gemini for brainstorm)",
-        "Claude + Codex (Codex Strategist uses Codex for brainstorm, codex-auditor uses Codex for audit)",
-        "Claude + Gemini + Codex (full stack)",
-      ],
-      multiSelect: false,
-    },
-  ],
-});
+```bash
+GEMINI_AVAILABLE=$(which gemini >/dev/null 2>&1 && echo "true" || echo "false")
+CODEX_AVAILABLE=$(which codex >/dev/null 2>&1 && echo "true" || echo "false")
 ```
 
-**NOTE:** The user's selection is informational only. Actual external AI usage is determined at runtime by agents checking `which gemini` / `which codex`. Even if the user selects "Claude only", installing the gemini CLI later will auto-enable it.
+Build the option labels dynamically based on detection. If a CLI is not found, append ` [CLI not detected]` to its options.
 
-### Step 4: Auto-Approve Security Notice
-
-Use AskUserQuestion to inform about the auto-approve hook.
-
-```typescript
-AskUserQuestion({
-  questions: [
-    {
-      question:
-        "Security notice about the auto-approve hook: This hook automatically approves Write/Edit/MultiEdit tool calls and mkdir Bash commands without user confirmation. This lets the orchestrator delegate file modifications to the Implementor agent without manual approval each time. For security-sensitive environments, disabling is recommended. Enable auto-approve?",
-      header: "Security",
-      options: [
-        "Enable (default, convenience first)",
-        "Disable (manual approval each time, security first)",
-      ],
-      multiSelect: false,
-    },
-  ],
-});
-```
-
-**If "Disable" is selected:** Display the following guidance:
+**Orchestrator pseudocode** (not a literal runnable script):
 
 ```
-Auto-approve disable guidance:
+AskUserQuestion:
+  header: "AI Backend Configuration"
+  question: |
+    Which AI backends would you like to enable?
 
-The current Claude Code plugin system does not support selectively disabling
-individual hooks within a plugin's hooks.json.
+    Detected CLIs:
+    - gemini: {installed / not found}
+    - codex: {installed / not found}
 
-Available alternatives:
-
-1. (Recommended) Control via Claude Code permissions:
-   claude /permissions deny Write
-   claude /permissions deny Edit
-   -> Even if the auto-approve hook returns "allow", Claude Code performs a final permissions check.
-
-2. Disable plugin and copy manually:
-   /plugin disable good-game
-   -> Then manually copy needed skills and agent files to local directories.
-   -> Skills: copy to ~/.claude/skills/
-   -> Agents: copy to ~/.claude/agents/
-
-3. Use in manual approval mode:
-   -> Even with auto-approve enabled, a confirmation popup appears for every tool call.
-   -> Auto-approve only auto-approves Write/Edit/MultiEdit and mkdir.
-   -> All other Bash commands still require manual approval.
+    You can install missing CLIs later and re-run /gg:setup to update.
+  options:
+    - "Claude only (default)"
+    - "Claude + Gemini"            # append " [CLI not detected]" if gemini not found
+    - "Claude + Codex"             # append " [CLI not detected]" if codex not found
+    - "Claude + Gemini + Codex"    # append " [some CLIs not detected]" if any not found
 ```
+
+**If the user selects an option with `[CLI not detected]`:** Warn the user that the selected backend CLI is not currently installed and the corresponding agents will fail until the CLI is available. Proceed with saving the selection anyway (the user may intend to install it later).
+
+**Save configuration:** Create the `.gg/` directory and write the config file.
+
+```bash
+mkdir -p {{PROJECT_ROOT}}/.gg
+```
+
+Map the selection to a config object:
+
+| Selection               | `gemini` | `codex` |
+| ----------------------- | -------- | ------- |
+| Claude only             | `false`  | `false` |
+| Claude + Gemini         | `true`   | `false` |
+| Claude + Codex          | `false`  | `true`  |
+| Claude + Gemini + Codex | `true`   | `true`  |
+
+Write the config file to `{{PROJECT_ROOT}}/.gg/config.json`:
+
+```json
+{
+  "version": 1,
+  "backends": {
+    "gemini": <true|false>,
+    "codex": <true|false>
+  }
+}
+```
+
+**Add `.gg/` to `.gitignore`:** Only if `{{PROJECT_ROOT}}/.gitignore` already exists. If it exists and does not contain `.gg/`, append it. If `.gitignore` does not exist, do NOT create one -- instead, display a note to the user:
+
+```
+Note: No .gitignore found in project root. Consider adding `.gg/` to your
+.gitignore to avoid committing plugin configuration to version control.
+```
+
+```bash
+# Only append to existing .gitignore
+if [ -f "{{PROJECT_ROOT}}/.gitignore" ]; then
+  grep -qxF '.gg/' "{{PROJECT_ROOT}}/.gitignore" || echo '.gg/' >> "{{PROJECT_ROOT}}/.gitignore"
+fi
+```
+
+**Note:** `{{PROJECT_ROOT}}` is not a literal shell variable. The orchestrator resolves this to the actual project root path at runtime (typically the current working directory).
+
+### Step 4: Subagent Permission Notice
+
+Display the following security notice and ask for acknowledgment:
+
+**Orchestrator pseudocode:**
+
+```
+AskUserQuestion:
+  header: "Subagent Permissions"
+  question: |
+    This plugin uses subagents (via Claude Code's Task tool) with
+    bypassPermissions permission. This means subagents can:
+
+    - Create directories (mkdir) for session documents and config
+    - Create/write markdown files (.md) for reports, blueprints, audits
+    - Read any file in your project for analysis
+    - Execute specific CLI commands (gemini, codex) if those backends
+      are enabled -- these run in sandboxed/read-only modes
+
+    Subagents CANNOT:
+    - Push to git, delete branches, or run destructive git commands
+    - Access credentials or environment files (by convention)
+
+    All generated documents are stored in:
+    - .claude/docs/ (session documents)
+    - .gg/ (plugin configuration)
+
+    Do you acknowledge these permissions?
+  options:
+    - "Yes, I understand and accept"
+    - "No, I want to review further before proceeding"
+```
+
+**If "No" is selected:** Display the following message and halt setup (do not proceed to Step 5):
+
+```
+Setup paused. You can review the agent definitions at:
+  {plugin_path}/agents/
+
+Each agent's frontmatter defines its permissionMode and available tools.
+Re-run /gg:setup when ready to proceed.
+```
+
+**If "Yes" is selected:** Proceed to Step 5.
 
 ### Step 5: Backup Existing CLAUDE.md
 
@@ -206,6 +252,13 @@ Read: {actual path}/templates/CLAUDE.md
 
 ### Step 7: Completion Message
 
+Build the skill list dynamically based on the backend selection:
+
+- If `gemini: false` and `codex: false`: Show "Opus" only for brainstorm/audit
+- If `gemini: true` and `codex: false`: Show "Opus + Gemini"
+- If `gemini: false` and `codex: true`: Show "Opus + Codex"
+- If both `true`: Show "Opus + Gemini + Codex"
+
 ```
 **GG -- Setup Complete**
 
@@ -215,17 +268,18 @@ good-game plugin setup is complete.
 - ~/.claude/CLAUDE.md (orchestrator protocol)
   (Previous file backed up: ~/.claude/CLAUDE.md.backup.{timestamp})
 - ~/.claude/LANGUAGE.md (language configuration)
+- {{PROJECT_ROOT}}/.gg/config.json (backend configuration)
 
-**Response Language:** {selected language}
-**External AI:** {user's selection}
-**auto-approve:** {enable/disable guidance}
+**Configuration:**
+- **Response Language:** {selected language}
+- **AI Backends:** {backend description, e.g., "Claude + Gemini (Codex disabled)"}
 
 **Available skills:**
 - /gg:explore    -- Multi-angle codebase reconnaissance
-- /gg:brainstorm -- 3-strategist parallel brainstorming (Opus + Gemini + Codex)
+- /gg:brainstorm -- {N}-strategist parallel brainstorming ({agent list})
 - /gg:blueprint  -- Precision implementation planning
 - /gg:execute    -- Code implementation
-- /gg:audit      -- 3-auditor parallel cross-review (Opus + Gemini + Codex)
+- /gg:audit      -- {N}-auditor parallel cross-review ({agent list})
 - /gg:handoff-be -- BE modification request document
 - /gg:handoff-fe -- FE handoff document
 - /gg:cm         -- Logical unit commits

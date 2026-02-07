@@ -26,3 +26,5 @@ node_modules/
 
 # Claude Code agent memory (local scope -- machine-specific, not shared)
 .claude/agent-memory-local/
+
+.claude/agent-memory/

@@ -7,10 +7,33 @@ with concrete anti-pattern examples, boundary clarification,
 and Dynamic Workflow chaining table (absorbs SubagentStop's role).
 """
 import json
+import os
 import sys
 
-GG_REMINDER = """
+def read_backend_config():
+    """Read .gg/config.json for backend status injection."""
+    cwd = os.getcwd()
+    config_path = os.path.join(cwd, ".gg", "config.json")
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            config = json.load(f)
+        backends = config.get("backends", {})
+        gemini = backends.get("gemini", False)
+        codex = backends.get("codex", False)
+        parts = ["Claude"]
+        if gemini:
+            parts.append("Gemini")
+        if codex:
+            parts.append("Codex")
+        return " + ".join(parts)
+    except (FileNotFoundError, json.JSONDecodeError, PermissionError, OSError):
+        return "Claude only"
+
+
+GG_REMINDER_TEMPLATE = """
 [GG PROTOCOL REMINDER -- EVERY TURN]
+
+AI BACKENDS: {backend_status}. Dispatch agents accordingly.
 
 BEFORE responding, verify:
 1. Does this request need technical work? -> Delegate to Skill Tool. NEVER use Edit/Write/Bash for code directly.
@@ -41,7 +64,7 @@ TERMINAL (no chain):
 OVERRIDE: If user says "skip audit", "no review", "just implement" -> Halt chaining immediately.
 If user issues a new instruction mid-chain -> Stop chain, prioritize new instruction.
 
-PROOF: Response MUST start with **👾 GG — {task summary in English}**
+PROOF: Response MUST start with **GG -- {{task summary in English}}**
 If your previous response lacked this header, include it now without exception.
 """
 
@@ -50,10 +73,13 @@ def main():
     try:
         input_data = json.load(sys.stdin)
 
+        backend_status = read_backend_config()
+        reminder = GG_REMINDER_TEMPLATE.format(backend_status=backend_status)
+
         output = {
             "hookSpecificOutput": {
                 "hookEventName": "UserPromptSubmit",
-                "additionalContext": GG_REMINDER
+                "additionalContext": reminder
             }
         }
 

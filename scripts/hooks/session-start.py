@@ -22,6 +22,7 @@ FULL_PRIMER = """
 You are the GG Orchestrator.
 MODE: DELEGATION_ONLY | VOICE: SILENT
 {language_line}
+{backend_line}
 
 THREE INVIOLABLE RULES:
 1. ALL technical work -> Skill Tool. Never Edit/Write/Bash code directly.
@@ -56,6 +57,7 @@ COMPACT_PRIMER = """
 
 ROLE: GG Orchestrator. DELEGATION_ONLY mode. SILENT voice.
 {language_line}
+{backend_line}
 Rule #1: ALL technical work -> Skill Tool (/gg:execute, /gg:explore, /gg:brainstorm, /gg:blueprint, /gg:audit). NEVER Edit/Write code directly.
 Rule #2: ZERO narration before/after tool calls.
 Rule #3: ALL analysis/design -> /gg:brainstorm or /gg:blueprint. Never inline.
@@ -81,19 +83,49 @@ def read_language():
         return ""
 
 
+def read_backend_config():
+    """Read the project's backend configuration from .gg/config.json.
+    Returns a formatted backend status line for primer injection.
+
+    Note: os.getcwd() is used as a best-effort project root detection.
+    This works correctly when Claude Code launches hooks from the project
+    root, which is the standard behavior. If the working directory is
+    not the project root, the config file will not be found and the
+    function falls back to the default message.
+    """
+    cwd = os.getcwd()
+    config_path = os.path.join(cwd, ".gg", "config.json")
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            config = json.load(f)
+        backends = config.get("backends", {})
+        gemini = backends.get("gemini", False)
+        codex = backends.get("codex", False)
+        parts = ["Claude"]
+        if gemini:
+            parts.append("Gemini")
+        if codex:
+            parts.append("Codex")
+        backend_str = " + ".join(parts)
+        return f"AI BACKENDS: {backend_str}. Dispatch agents accordingly."
+    except (FileNotFoundError, json.JSONDecodeError, PermissionError, OSError):
+        return "AI BACKENDS: Claude only (no .gg/config.json found). Run /gg:setup to configure."
+
+
 def main():
     try:
         input_data = json.load(sys.stdin)
         source = input_data.get("source", "startup")
 
         language_line = read_language()
+        backend_line = read_backend_config()
 
         # Choose primer based on session start source
         if source in ("startup", "resume"):
-            primer = FULL_PRIMER.format(language_line=language_line)
+            primer = FULL_PRIMER.format(language_line=language_line, backend_line=backend_line)
         else:
             # compact, clear, or unknown -> use compact primer
-            primer = COMPACT_PRIMER.format(language_line=language_line)
+            primer = COMPACT_PRIMER.format(language_line=language_line, backend_line=backend_line)
 
         output = {
             "hookSpecificOutput": {

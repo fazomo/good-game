@@ -77,6 +77,22 @@ rm -f ~/.claude/LANGUAGE.md
 
 This file was created by `/gg:setup` and is specific to the good-game plugin.
 
+### Step 2.7: Delete .gg/ Configuration
+
+Delete the `.gg/` configuration directory if it exists:
+
+```bash
+rm -rf {{PROJECT_ROOT}}/.gg
+```
+
+Also remove the `.gg/` entry from `.gitignore` if it was added by setup:
+
+```bash
+if [ -f "{{PROJECT_ROOT}}/.gitignore" ]; then
+  grep -v '^\.gg/$' "{{PROJECT_ROOT}}/.gitignore" > "{{PROJECT_ROOT}}/.gitignore.tmp" && mv "{{PROJECT_ROOT}}/.gitignore.tmp" "{{PROJECT_ROOT}}/.gitignore"
+fi
+```
+
 ### Step 3: Completion Message
 
 ```
@@ -85,8 +101,10 @@ This file was created by `/gg:setup` and is specific to the good-game plugin.
 good-game plugin cleanup is complete.
 
 **Restored/deleted items:**
+
 - ~/.claude/CLAUDE.md: {Restored (from backup) / Deleted / Unchanged}
 - ~/.claude/LANGUAGE.md: Deleted (if existed)
+- {{PROJECT_ROOT}}/.gg/: Deleted (if existed)
 
 **Next steps:**
 1. Disable the plugin:
