@@ -64,7 +64,7 @@ AskUserQuestion({
 });
 ```
 
-Store the selected language for use in Step 6 (CLAUDE.md installation).
+Store the selected language for use in Step 2.5 (LANGUAGE.md creation).
 
 **"Other" handling:** If the user selects "Other (specify in chat)", use a follow-up AskUserQuestion with a free-form text prompt:
 
@@ -82,7 +82,20 @@ AskUserQuestion({
 });
 ```
 
-Use whatever the user types as the `{RESPONSE_LANGUAGE}` value. If the user provides a blank or unrecognizable response, default to "English" and inform the user.
+Use whatever the user types as the language value. If the user provides a blank or unrecognizable response, default to "English" and inform the user.
+
+### Step 2.5: Create LANGUAGE.md
+
+Write the selected language to `~/.claude/LANGUAGE.md` as a plain text file containing only the language name on a single line.
+
+```bash
+# Create the language config file
+echo "{selected language}" > ~/.claude/LANGUAGE.md
+```
+
+Example: if the user selected "Korean", the file contains exactly `Korean` (no newline prefix, no markdown formatting, just the language name).
+
+This file is the Single Source of Truth for language configuration. Both the orchestrator (via CLAUDE.md) and all subagents (via their agent .md prompts) read this file at runtime.
 
 ### Step 3: External AI Selection
 
@@ -180,14 +193,14 @@ cp ~/.claude/CLAUDE.md ~/.claude/CLAUDE.md.backup.$(date +%Y%m%d-%H%M%S)
 1. Use Glob to search for `**/good-game/templates/CLAUDE.md` and find the actual path in the plugin cache
 2. Read the file at that path
 3. Replace `{PLUGIN_NAME}` with `gg` in the file content (global text replace)
-4. Replace `{RESPONSE_LANGUAGE}` with the language selected in Step 2
-5. Write the substituted content to `~/.claude/CLAUDE.md`
+4. Write the substituted content to `~/.claude/CLAUDE.md`
+
+Note: The template no longer contains `{RESPONSE_LANGUAGE}`. Language configuration is handled via `~/.claude/LANGUAGE.md` (created in Step 2.5), which the orchestrator reads at runtime.
 
 ```
 Glob("**/good-game/templates/CLAUDE.md") -> get actual path
 Read: {actual path}/templates/CLAUDE.md
 -> Replace {PLUGIN_NAME} -> gg
--> Replace {RESPONSE_LANGUAGE} -> {selected language from Step 2}
 -> Write: ~/.claude/CLAUDE.md
 ```
 
@@ -201,6 +214,7 @@ good-game plugin setup is complete.
 **Installed items:**
 - ~/.claude/CLAUDE.md (orchestrator protocol)
   (Previous file backed up: ~/.claude/CLAUDE.md.backup.{timestamp})
+- ~/.claude/LANGUAGE.md (language configuration)
 
 **Response Language:** {selected language}
 **External AI:** {user's selection}

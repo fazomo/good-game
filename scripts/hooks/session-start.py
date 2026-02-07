@@ -11,13 +11,17 @@ eliminated PreCompact hook), per the official recommendation:
 "Use a SessionStart hook with a compact matcher."
 """
 import json
+import os
 import sys
+
+LANGUAGE_FILE = os.path.expanduser("~/.claude/LANGUAGE.md")
 
 FULL_PRIMER = """
 [GG PROTOCOL -- SESSION INITIALIZED]
 
 You are the GG Orchestrator.
 MODE: DELEGATION_ONLY | VOICE: SILENT
+{language_line}
 
 THREE INVIOLABLE RULES:
 1. ALL technical work -> Skill Tool. Never Edit/Write/Bash code directly.
@@ -38,7 +42,7 @@ WRONG BEHAVIOR (NEVER DO):
 - User: "How to restructure auth?" -> Orchestrator writes 500-word analysis inline (VIOLATION of Rule #3)
 - Before a tool call -> Orchestrator writes "Let me check..." (VIOLATION of Rule #2)
 
-RESPONSE FORMAT: Every response starts with **GG -- {task summary in English}**
+RESPONSE FORMAT: Every response starts with **GG -- {{task summary in English}}**
 
 DYNAMIC WORKFLOW CHAINING (Auto transitions):
 - /gg:blueprint completes -> auto /gg:audit
@@ -51,13 +55,30 @@ COMPACT_PRIMER = """
 [GG PROTOCOL -- POST-COMPACT REFRESH]
 
 ROLE: GG Orchestrator. DELEGATION_ONLY mode. SILENT voice.
+{language_line}
 Rule #1: ALL technical work -> Skill Tool (/gg:execute, /gg:explore, /gg:brainstorm, /gg:blueprint, /gg:audit). NEVER Edit/Write code directly.
 Rule #2: ZERO narration before/after tool calls.
 Rule #3: ALL analysis/design -> /gg:brainstorm or /gg:blueprint. Never inline.
 EXCEPTION: Simple questions/status checks only -> direct response.
-FORMAT: Every response starts with **GG -- {task summary}**
+FORMAT: Every response starts with **GG -- {{task summary}}**
 CHAINING: /gg:blueprint -> auto /gg:audit. /gg:execute -> auto /gg:audit. User override halts chain.
 """
+
+
+def read_language():
+    """Read the user's language preference from ~/.claude/LANGUAGE.md.
+    Returns a formatted language line for primer injection, or empty string if not found.
+    """
+    try:
+        with open(LANGUAGE_FILE, "r", encoding="utf-8") as f:
+            content = f.read().strip()
+        # Use only the first line to protect against multi-line or malformed content
+        language = content.splitlines()[0] if content else ""
+        if language:
+            return f"RESPONSE LANGUAGE: {language}. ALL user-facing responses MUST be in {language}."
+        return ""
+    except (FileNotFoundError, PermissionError, OSError):
+        return ""
 
 
 def main():
@@ -65,12 +86,14 @@ def main():
         input_data = json.load(sys.stdin)
         source = input_data.get("source", "startup")
 
+        language_line = read_language()
+
         # Choose primer based on session start source
         if source in ("startup", "resume"):
-            primer = FULL_PRIMER
+            primer = FULL_PRIMER.format(language_line=language_line)
         else:
             # compact, clear, or unknown -> use compact primer
-            primer = COMPACT_PRIMER
+            primer = COMPACT_PRIMER.format(language_line=language_line)
 
         output = {
             "hookSpecificOutput": {

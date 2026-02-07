@@ -67,6 +67,16 @@ rm ~/.claude/CLAUDE.md.backup.*
    - If so, delete it
    - Otherwise, leave it untouched
 
+### Step 2.5: Delete LANGUAGE.md
+
+Delete `~/.claude/LANGUAGE.md` if it exists:
+
+```bash
+rm -f ~/.claude/LANGUAGE.md
+```
+
+This file was created by `/gg:setup` and is specific to the good-game plugin.
+
 ### Step 3: Completion Message
 
 ```
@@ -76,6 +86,7 @@ good-game plugin cleanup is complete.
 
 **Restored/deleted items:**
 - ~/.claude/CLAUDE.md: {Restored (from backup) / Deleted / Unchanged}
+- ~/.claude/LANGUAGE.md: Deleted (if existed)
 
 **Next steps:**
 1. Disable the plugin:
