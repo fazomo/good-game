@@ -135,6 +135,15 @@ LANGUAGE=$(cat ~/.claude/LANGUAGE.md 2>/dev/null | head -1)
 
 Pass the Director **output path** and **preprocessed results** explicitly:
 
+**GG Task Dispatch Policy (experience-first standard):**
+
+- **Task standard format:** Use `Task({ ... })` for Task examples in this skill.
+- **Background rule:** Director dispatch uses `run_in_background: true`.
+- **Completion gate:** Proceed to summary reporting and auto-audit only after the Director Task completes.
+- **Single-task consistency:** Even single-agent dispatch follows the same `Task({ ... })` standard.
+- **Spec-gap note:** Official SDK schema may differ by surface, but GG enforces this standard for operational reliability.
+- **GG standard:** `Task({ ... run_in_background: true })` is the GG operational standard for background Task dispatch.
+
 ```typescript
 Task({
   subagent_type: "director",
@@ -174,7 +183,7 @@ Task({
 
 ### 5. Present Summary (Orchestrator Output Format)
 
-Orchestrator reports Phase list and save path only:
+After confirming Director Task completion, orchestrator reports Phase list and save path only:
 
 ```
 **[Director]** -- returned
@@ -191,7 +200,7 @@ Orchestrator reports Phase list and save path only:
 
 ### 6. Auto-Audit Chain
 
-After Director completes, the orchestrator **automatically** triggers audit. Invoke the audit Skill tool directly.
+After Director Task completion is confirmed, the orchestrator **automatically** triggers audit. Invoke the audit Skill tool directly.
 
 Audit target: `{{SESSION_DIR}}/blueprint/*.md`
 

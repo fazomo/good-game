@@ -100,6 +100,12 @@ LANGUAGE=$(cat ~/.claude/LANGUAGE.md 2>/dev/null | head -1)
 Based on the specified Level, invoke **all Investigators simultaneously (Parallel)**.
 Every Investigator prompt **must include the output path and filename**.
 
+**Parallel dispatch requirements (mandatory):**
+
+- Dispatch all Investigator Tasks in a **single orchestrator response**
+- Every Investigator Task **must** include `run_in_background: true`
+- Do not invoke Synthesizer until **all dispatched Investigators** are complete
+
 ---
 
 #### Quick: Generalist (1 squad = 2 agents)

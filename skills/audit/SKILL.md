@@ -48,11 +48,11 @@ If type is not specified, the orchestrator examines the target path content to d
 ```
 1. Read target + confirm type
    |
-2. Dispatch 3 auditors (parallel) -- Opus, Codex, Gemini
+2. Dispatch 1-3 auditors (parallel) -- based on backend config
    |
-3. Wait for all 3 reviewers to complete
+3. Wait for all dispatched reviewers to complete
    |
-4. Orchestrator reports the 3 reviewer result file paths
+4. Orchestrator reports dispatched reviewer result file paths
    |
 5. Feedback routing (context branching)
    - Pipeline internal (/blueprint follow-up): forward to executor (Director) -> revise
@@ -92,79 +92,97 @@ LANGUAGE=$(cat ~/.claude/LANGUAGE.md 2>/dev/null | head -1)
 
 **Always dispatch Opus Auditor.** Conditionally dispatch Codex and Gemini auditors based on config. Every auditor prompt includes the resolved output language.
 
+**GG Task Dispatch Policy (experience-first standard):**
+
+- **Task standard format:** Use `Task({ ... })` for all Task examples in this skill.
+- **Parallel dispatch requirement:** Parallel auditor Tasks must include `run_in_background: true`.
+- **Single-response rule:** Dispatch the full parallel auditor Task group in one orchestrator response.
+- **Sequential gate rule:** Present results or trigger feedback routing only after all dispatched parallel auditor Tasks complete.
+- **Spec-gap note:** Official SDK schema may differ by surface, but GG enforces this standard for operational reliability.
+- **GG standard:** `Task({ ... run_in_background: true })` is the GG operational standard for parallel auditor dispatch.
+
 **Orchestrator pseudocode:**
 
-```
+```typescript
 // ALWAYS: Opus Auditor
-Task(opus-auditor):
-  description: "Opus auditing target"
-  prompt: |
-    ## Output Language
-    {language}
+Task({
+  subagent_type: "opus-auditor",
+  description: "Opus auditing target",
+  prompt: `
+## Output Language
+{language}
 
-    ## Audit Target
-    {target_path}
+## Audit Target
+{target_path}
 
-    ## Audit Target Type
-    {target_type}
+## Audit Target Type
+{target_type}
 
-    ## Source Documents
-    {source_documents}
+## Source Documents
+{source_documents}
 
-    ## Applied Best Practices
-    {best_practices_paths}
+## Applied Best Practices
+{best_practices_paths}
 
-    ## Output Path
-    {{SESSION_DIR}}/audit/
-  run_in_background: true
+## Output Path
+{{SESSION_DIR}}/audit/
+  `,
+  run_in_background: true,
+});
 
 // CONDITIONAL: Codex Auditor
 if config.backends.codex:
-  Task(codex-auditor):
-    description: "Codex auditing target"
-    prompt: |
-      ## Output Language
-      {language}
+  Task({
+    subagent_type: "codex-auditor",
+    description: "Codex auditing target",
+    prompt: `
+## Output Language
+{language}
 
-      ## Audit Target
-      {target_path}
+## Audit Target
+{target_path}
 
-      ## Audit Target Type
-      {target_type}
+## Audit Target Type
+{target_type}
 
-      ## Source Documents
-      {source_documents}
+## Source Documents
+{source_documents}
 
-      ## Applied Best Practices
-      {best_practices_paths}
+## Applied Best Practices
+{best_practices_paths}
 
-      ## Output Path
-      {{SESSION_DIR}}/audit/
-    run_in_background: true
+## Output Path
+{{SESSION_DIR}}/audit/
+    `,
+    run_in_background: true,
+  });
 
 // CONDITIONAL: Gemini Auditor
 if config.backends.gemini:
-  Task(gemini-auditor):
-    description: "Gemini auditing target"
-    prompt: |
-      ## Output Language
-      {language}
+  Task({
+    subagent_type: "gemini-auditor",
+    description: "Gemini auditing target",
+    prompt: `
+## Output Language
+{language}
 
-      ## Audit Target
-      {target_path}
+## Audit Target
+{target_path}
 
-      ## Audit Target Type
-      {target_type}
+## Audit Target Type
+{target_type}
 
-      ## Source Documents
-      {source_documents}
+## Source Documents
+{source_documents}
 
-      ## Applied Best Practices
-      {best_practices_paths}
+## Applied Best Practices
+{best_practices_paths}
 
-      ## Output Path
-      {{SESSION_DIR}}/audit/
-    run_in_background: true
+## Output Path
+{{SESSION_DIR}}/audit/
+    `,
+    run_in_background: true,
+  });
 ```
 
 ### 4. Present Results (Orchestrator Output)
@@ -189,31 +207,34 @@ Executor = Director. Forward feedback to Director to revise the Blueprint docume
 
 **Orchestrator pseudocode:**
 
-```
-Task(director):
-  description: "Director revising blueprint based on audit"
-  prompt: |
-    ## Output Language
-    {language}
+```typescript
+Task({
+  subagent_type: "director",
+  description: "Director revising blueprint based on audit",
+  prompt: `
+## Output Language
+{language}
 
-    ## Audit Feedback - Audit Complete
+## Audit Feedback - Audit Complete
 
-    {N} reviewer(s) have completed their audit.
+{N} reviewer(s) have completed their audit.
 
-    ### Audit Reports (must Read)
-    - {{SESSION_DIR}}/audit/opus.{nn}.md
-    - {{SESSION_DIR}}/audit/codex.{nn}.md    // only if codex was dispatched
-    - {{SESSION_DIR}}/audit/gemini.{nn}.md   // only if gemini was dispatched
+### Audit Reports (must Read)
+- {{SESSION_DIR}}/audit/opus.{nn}.md
+- {{SESSION_DIR}}/audit/codex.{nn}.md    // only if codex was dispatched
+- {{SESSION_DIR}}/audit/gemini.{nn}.md   // only if gemini was dispatched
 
-    ### Original Target
-    {target_path}
+### Original Target
+{target_path}
 
-    ### Common Critical Issues Summary
-    {common_critical_summary}
+### Common Critical Issues Summary
+{common_critical_summary}
 
-    Read the above audit reports to review the findings.
-    If Critical/Warning issues exist, revise the target accordingly.
-    Overwrite revised content at the same path.
+Read the above audit reports to review the findings.
+If Critical/Warning issues exist, revise the target accordingly.
+Overwrite revised content at the same path.
+  `,
+});
 ```
 
 #### Case B: Pipeline internal call (previous skill was /execute)
@@ -222,24 +243,27 @@ Executor = Implementor. Forward feedback to Implementor to revise the code:
 
 **Orchestrator pseudocode:**
 
-```
-Task(implementor):
-  description: "Implementor revising code based on audit"
-  prompt: |
-    ## Audit Feedback - Audit Complete
+```typescript
+Task({
+  subagent_type: "implementor",
+  description: "Implementor revising code based on audit",
+  prompt: `
+## Audit Feedback - Audit Complete
 
-    {N} reviewer(s) have completed their audit.
+{N} reviewer(s) have completed their audit.
 
-    ### Audit Reports (must Read)
-    - {{SESSION_DIR}}/audit/opus.{nn}.md
-    - {{SESSION_DIR}}/audit/codex.{nn}.md    // only if codex was dispatched
-    - {{SESSION_DIR}}/audit/gemini.{nn}.md   // only if gemini was dispatched
+### Audit Reports (must Read)
+- {{SESSION_DIR}}/audit/opus.{nn}.md
+- {{SESSION_DIR}}/audit/codex.{nn}.md    // only if codex was dispatched
+- {{SESSION_DIR}}/audit/gemini.{nn}.md   // only if gemini was dispatched
 
-    ### Original Target
-    {target_path}
+### Original Target
+{target_path}
 
-    Read the above audit reports to review the findings.
-    If Critical/Warning issues exist, revise the target accordingly.
+Read the above audit reports to review the findings.
+If Critical/Warning issues exist, revise the target accordingly.
+  `,
+});
 ```
 
 **Note:** Case B dispatches the Implementor, which is a code-only agent. No `## Output Language` is injected here -- the Implementor produces code, not documents.

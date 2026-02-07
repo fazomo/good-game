@@ -37,10 +37,15 @@ This creates a 1-to-3 strategist pattern depending on the user's configured AI b
    - More questions are better, but don't force them
    - Ask from diverse perspectives
      |
-3. Dispatch Opus Strategist + Gemini Strategist + Codex Strategist in parallel
+3. Dispatch configured strategists in parallel (1-3 based on backend config)
+   - Single orchestrator response, every dispatched Task uses run_in_background: true
    - Pass both the original request and Q&A content
      |
-4. Orchestrator reports only paths and one-line common/diff summary
+4. Build source list from completed strategist outputs
+   - 2+ sources: run Synthesizer
+   - 1 source (Claude-only): skip Synthesizer and use Opus output as final report
+     |
+5. Orchestrator reports only result paths
 
 ```
 
@@ -124,72 +129,90 @@ The orchestrator reads `~/.claude/LANGUAGE.md` and uses the first line as the la
 
 **Always dispatch Opus Strategist.** Conditionally dispatch Gemini and Codex strategists based on the config read in step 2. Every agent prompt includes the resolved output language.
 
+**GG Task Dispatch Policy (experience-first standard):**
+
+- **Task standard format:** Use `Task({ ... })` for all Task examples in this skill.
+- **Parallel dispatch requirement:** Parallel strategist Tasks must include `run_in_background: true`.
+- **Single-response rule:** Dispatch the full parallel Task group in one orchestrator response.
+- **Sequential gate rule:** Move to synthesis only after all dispatched parallel strategist Tasks complete.
+- **Spec-gap note:** Official SDK schema may differ by surface, but GG enforces this standard for operational reliability.
+- **GG standard:** `Task({ ... run_in_background: true })` is the GG operational standard for parallel strategist dispatch.
+
 **Orchestrator pseudocode:**
 
-```
+```typescript
 // ALWAYS: Opus Strategist (opus) -- logical strategy
-Task(opus-strategist):
-  description: "Opus Strategist brainstorming {topic}"
-  prompt: |
-    ## Output Language
-    {language}
+Task({
+  subagent_type: "opus-strategist",
+  description: "Opus Strategist brainstorming {topic}",
+  prompt: `
+## Output Language
+{language}
 
-    ## Original Request
-    {original_request}
+## Original Request
+{original_request}
 
-    ## Socratic Q&A
-    {qa_summary}
+## Socratic Q&A
+{qa_summary}
 
-    ## Output Path
-    {{SESSION_DIR}}/brainstorm/
-  run_in_background: true
+## Output Path
+{{SESSION_DIR}}/brainstorm/
+  `,
+  run_in_background: true,
+});
 
 // CONDITIONAL: Gemini Strategist (if gemini backend enabled)
 if config.backends.gemini:
-  Task(gemini-strategist):
-    description: "Gemini Strategist brainstorming {topic}"
-    prompt: |
-      ## Output Language
-      {language}
+  Task({
+    subagent_type: "gemini-strategist",
+    description: "Gemini Strategist brainstorming {topic}",
+    prompt: `
+## Output Language
+{language}
 
-      ## Original Request
-      {original_request}
+## Original Request
+{original_request}
 
-      ## Socratic Q&A
-      {qa_summary}
+## Socratic Q&A
+{qa_summary}
 
-      ## Output Path
-      {{SESSION_DIR}}/brainstorm/
-    run_in_background: true
+## Output Path
+{{SESSION_DIR}}/brainstorm/
+    `,
+    run_in_background: true,
+  });
 
 // CONDITIONAL: Codex Strategist (if codex backend enabled)
 if config.backends.codex:
-  Task(codex-strategist):
-    description: "Codex Strategist brainstorming {topic}"
-    prompt: |
-      ## Output Language
-      {language}
+  Task({
+    subagent_type: "codex-strategist",
+    description: "Codex Strategist brainstorming {topic}",
+    prompt: `
+## Output Language
+{language}
 
-      ## Original Request
-      {original_request}
+## Original Request
+{original_request}
 
-      ## Socratic Q&A
-      {qa_summary}
+## Socratic Q&A
+{qa_summary}
 
-      ## Output Path
-      {{SESSION_DIR}}/brainstorm/
-    run_in_background: true
+## Output Path
+{{SESSION_DIR}}/brainstorm/
+    `,
+    run_in_background: true,
+  });
 ```
 
-### 4. Dispatch Synthesizer (Sequential)
+### 4. Conditional Synthesizer Dispatch (Sequential)
 
-After all dispatched agents complete, invoke the Synthesizer in brainstorm mode.
+After all dispatched strategist agents complete, build the source file list.
 
 The source file list is dynamic based on which agents were dispatched:
 
 **Orchestrator pseudocode:**
 
-```
+```typescript
 // Build source file list dynamically
 sourceFiles = [{{SESSION_DIR}}/brainstorm/opus.{nn}.md]
 if config.backends.gemini:
@@ -197,26 +220,31 @@ if config.backends.gemini:
 if config.backends.codex:
   sourceFiles.append({{SESSION_DIR}}/brainstorm/codex.{nn}.md)
 
-Task(synthesizer):
-  description: "Synthesizing brainstorm results"
-  prompt: |
-    ## Output Language
-    {language}
+if len(sourceFiles) >= 2:
+  Task({
+    subagent_type: "synthesizer",
+    description: "Synthesizing brainstorm results",
+    prompt: `
+## Output Language
+{language}
 
-    ## Mode
-    brainstorm
+## Mode
+brainstorm
 
-    ## Brainstorming Topic
-    {topic}
+## Brainstorming Topic
+{topic}
 
-    ## Source Files
-    {sourceFiles, one per line prefixed with "- "}
+## Source Files
+{sourceFiles, one per line prefixed with "- "}
 
-    ## Output Path
-    {{SESSION_DIR}}/brainstorm/
+## Output Path
+{{SESSION_DIR}}/brainstorm/
+    `,
+  });
+else:
+  // Claude-only single-source path:
+  // Skip synthesizer and use opus.{nn}.md as the final report.
 ```
-
-**If only Opus was dispatched (Claude-only mode):** The synthesizer still runs but with a single source. Its output will be a streamlined report based on one perspective rather than a multi-perspective synthesis.
 
 **Note:** The source file list uses actual paths returned by the agents. The filenames above are examples; the orchestrator dynamically assembles the list by parsing each agent's return message for the "Saved: {path}" pattern. If an agent fails to save a file and returns text directly instead, inline that content into the Synthesizer prompt as a fallback.
 
@@ -228,9 +256,10 @@ Report only the agents that were dispatched:
 **[Opus Strategist]** -- returned
 **[Gemini Strategist]** -- returned          // only if gemini enabled
 **[Codex Strategist]** -- returned           // only if codex enabled
-**[Synthesizer]** -- returned
+**[Synthesizer]** -- returned                // only if 2+ strategist sources
 
-**Report** -- `{{SESSION_DIR}}/brainstorm/synthesis.{nn}.md`
+**Report** -- `{{SESSION_DIR}}/brainstorm/synthesis.{nn}.md`   // 2+ sources
+**Report** -- `{{SESSION_DIR}}/brainstorm/opus.{nn}.md`        // single source
 **Detail** -- `{{SESSION_DIR}}/brainstorm/`
 ```
 
@@ -238,6 +267,7 @@ Report only the agents that were dispatched:
 
 - Agents save files directly (orchestrator does not save)
 - Filenames are determined by each agent per its convention
-- Synthesizer consolidates all dispatched results into a unified report
+- Synthesizer runs only when 2+ strategist sources are available
+- Claude-only single-source mode uses Opus output directly as final report
 - Orchestrator does not relay detailed content
 - Direct users to reference the files
