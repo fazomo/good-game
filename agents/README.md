@@ -15,7 +15,7 @@ Agent roster for the good-game plugin. Each agent is invoked exclusively through
 | opus-auditor      | opus   | --                   | always       | /gg:audit                      | Audit (Opus perspective)       |
 | codex-auditor     | opus   | gpt-5.3-codex        | if codex on  | /gg:audit                      | Audit (Codex perspective)      |
 | gemini-auditor    | opus   | gemini-3-pro-preview | if gemini on | /gg:audit                      | Audit (Gemini perspective)     |
-| synthesizer       | sonnet | --                   | always       | /gg:explore, /gg:brainstorm    | Parallel result synthesis      |
+| synthesizer       | sonnet | --                   | conditional  | /gg:explore, /gg:brainstorm    | Parallel result synthesis      |
 | writer            | sonnet | --                   | always       | /gg:handoff-be, /gg:handoff-fe | Handoff document generation    |
 | code-simplifier   | opus   | --                   | always       | /gg:execute                    | Post-implementation refinement |
 
@@ -23,7 +23,13 @@ Agent roster for the good-game plugin. Each agent is invoked exclusively through
 
 - **Model**: The Claude model used by the Task tool's subagent. This is the model Claude Code uses when running the agent.
 - **External Model**: An external AI model the agent invokes internally via CLI. `--` means the agent runs on the Claude model alone. Gemini-strategist and gemini-auditor use the `gemini` CLI to call gemini-3-pro-preview. Codex-strategist and codex-auditor use the `codex` CLI to call gpt-5.3-codex.
-- **Condition**: `always` = dispatched regardless of config. `if gemini on` / `if codex on` = dispatched only when the corresponding backend is enabled in `.gg/config.json`.
+- **Condition**: `always` = dispatched regardless of config. `if gemini on` / `if codex on` = dispatched only when the corresponding backend is enabled in `.gg/config.json`. `conditional` for `synthesizer` means: always in `/gg:explore`, but in `/gg:brainstorm` only when 2+ strategist source files are available.
+
+## Permission Policy
+
+All agent definition files in this directory use `permissionMode: acceptEdits`.
+
+During real execution, the plugin's PreToolUse auto-approve hook additionally auto-approves `Write`, `Edit`, `MultiEdit`, and safe `mkdir` commands (no shell chaining), reducing repeated permission prompts in the normal GG workflow.
 
 ## Configuration
 

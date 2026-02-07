@@ -8,7 +8,7 @@ Every AI model has blind spots. Opus reasons deeply but can over-engineer. Gemin
 
 ## The 3 + 3 Pattern
 
-The architectural signature of good-game: **3 strategists brainstorm, 3 auditors review.** Same three AI engines, symmetric across both phases.
+The architectural signature of good-game: **up to 3 strategists brainstorm, up to 3 auditors review.** Same three AI engines, symmetric across both phases when all backends are enabled.
 
 | Phase          | Opus (Logic)      | Gemini (Creative)   | Codex (Validation) |
 | :------------- | :---------------- | :------------------ | :----------------- |
@@ -81,10 +81,10 @@ Restart your Claude Code session to activate the protocol.
 | Skill        | Command          | Description                                                 |
 | ------------ | ---------------- | ----------------------------------------------------------- |
 | Explore      | `/gg:explore`    | Multi-angle codebase reconnaissance (Investigator swarm)    |
-| Brainstorm   | `/gg:brainstorm` | 3-strategist parallel brainstorming (Opus + Gemini + Codex) |
+| Brainstorm   | `/gg:brainstorm` | 1-3 strategist parallel brainstorming (config-based)         |
 | Blueprint    | `/gg:blueprint`  | Precision implementation planning (Director)                |
 | Execute      | `/gg:execute`    | Blueprint-based code implementation (Implementor)           |
-| Audit        | `/gg:audit`      | 3-auditor parallel cross-review (Opus + Gemini + Codex)     |
+| Audit        | `/gg:audit`      | 1-3 auditor parallel cross-review (config-based)            |
 | Handoff (BE) | `/gg:handoff-be` | Frontend-to-backend modification request document           |
 | Handoff (FE) | `/gg:handoff-fe` | Backend-to-frontend handoff document                        |
 | Commit       | `/gg:cm`         | Logical unit commits for current changes                    |
@@ -104,7 +104,7 @@ Restart your Claude Code session to activate the protocol.
 | opus-auditor      | opus   | --                   | Audit (Opus perspective)       |
 | codex-auditor     | opus   | gpt-5.3-codex        | Audit (Codex perspective)      |
 | gemini-auditor    | opus   | gemini-3-pro-preview | Audit (Gemini perspective)     |
-| synthesizer       | sonnet | --                   | Parallel result synthesis      |
+| synthesizer       | sonnet | --                   | Result synthesis (explore always, brainstorm when 2+ sources) |
 | writer            | sonnet | --                   | Handoff document generation    |
 | code-simplifier   | opus   | --                   | Post-implementation refinement |
 
@@ -146,6 +146,10 @@ Refer to each CLI's official documentation for installation:
 This plugin includes an auto-approve hook that automatically approves Write, Edit, MultiEdit tool calls and `mkdir` Bash commands without user confirmation. This is designed for the delegation workflow where the orchestrator delegates to the Implementor agent.
 
 **If you work in a security-sensitive environment**, consider disabling auto-approve during setup or disabling the plugin's hooks entirely.
+
+### Subagent Permission Mode
+
+All bundled subagents use `permissionMode: acceptEdits`. Combined with the PreToolUse auto-approve hook above, this keeps normal document/code workflows low-friction while preserving guardrails for non-whitelisted commands.
 
 ### External AI Data Transmission
 

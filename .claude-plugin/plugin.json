@@ -1,6 +1,6 @@
 {
   "name": "gg",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Multi-agent orchestration protocol for Claude Code. Structured workflows: explore, brainstorm, blueprint, execute, audit, and handoff -- powered by parallel AI agents with optional Gemini/Codex cross-validation.",
   "author": {
     "name": "Moonsun Kim",

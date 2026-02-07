@@ -184,7 +184,8 @@ AskUserQuestion:
   header: "Subagent Permissions"
   question: |
     This plugin uses subagents (via Claude Code's Task tool) with
-    bypassPermissions permission. This means subagents can:
+    acceptEdits permission. The plugin also includes a PreToolUse
+    auto-approve hook for safe operations. This means subagents can:
 
     - Create directories (mkdir) for session documents and config
     - Create/write markdown files (.md) for reports, blueprints, audits
